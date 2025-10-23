@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yedu - The Digital Chavruta</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --font-serif: 'Frank Ruhl Libre', serif;
+            --font-sans: 'Heebo', sans-serif;
+            
+            --manuscript-bg: #f5f1e8;
+            --manuscript-text: #4a2c2a;
+            --manuscript-accent: #a8853a;
+            
+            --scholar-bg: #f8f9fa;
+            --scholar-text: #212529;
+            --scholar-accent: #005f73;
+
+            --bg-color: var(--scholar-bg);
+            --text-color: var(--scholar-text);
+            --accent-color: var(--scholar-accent);
+            --font-main: var(--font-sans);
+
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        
+        body {
+            margin: 0;
+            font-family: var(--font-main);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: background-color 0.3s ease, color 0.3s ease;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        body.theme-manuscript {
+            --bg-color: var(--manuscript-bg);
+            --text-color: var(--manuscript-text);
+            --accent-color: var(--manuscript-accent);
+            --font-main: var(--font-serif);
+        }
+
+        #root {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Utility Classes */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
+        }
+        
+        /* General Component Styles */
+        button, .button {
+            font-family: var(--font-sans);
+            font-weight: 600;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            border: 1px solid var(--accent-color);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+        
+        .button-primary {
+            background-color: var(--accent-color);
+            color: var(--bg-color);
+        }
+        
+        .button-primary:hover {
+            opacity: 0.85;
+            box-shadow: var(--shadow-md);
+        }
+
+        .button-secondary {
+            background-color: transparent;
+            color: var(--accent-color);
+        }
+
+        .button-secondary:hover {
+            background-color: var(--accent-color);
+            color: var(--bg-color);
+        }
+
+        .button-icon {
+            background: none;
+            border: none;
+            padding: 0.5rem;
+            cursor: pointer;
+            color: var(--text-color);
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        .button-icon:hover {
+            opacity: 1;
+        }
+        .button-icon svg {
+            width: 24px;
+            height: 24px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            border: 1px solid rgba(0,0,0,0.1);
+            background-color: rgba(255, 255, 255, 0.5);
+            font-family: inherit;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            font-family: var(--font-sans);
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            flex-direction: column;
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+        
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 5px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 1.5rem;
+        }
+
+        .loading-quote {
+            font-family: var(--font-serif);
+            font-size: 1.25rem;
+            max-width: 600px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 500;
+        }
+
+        .modal-content {
+            background-color: var(--bg-color);
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: var(--shadow-lg);
+            width: 90%;
+            max-width: 500px;
+        }
+        
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.26.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/"
+  }
+}
+</script>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+</body>
+</html>
