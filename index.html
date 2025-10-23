@@ -198,6 +198,136 @@
             max-width: 500px;
         }
         
+        /* Transcript Panel */
+        .transcript-panel {
+            position: fixed;
+            top: 68px; /* Height of Infographic header */
+            right: 0;
+            bottom: 0;
+            width: 400px;
+            max-width: 90vw;
+            background-color: var(--bg-color);
+            box-shadow: var(--shadow-lg);
+            z-index: 90;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease-out;
+        }
+        .transcript-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 1.5rem;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+        }
+        .transcript-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+        }
+        .transcript-content pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: var(--font-sans);
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        /* Q&A Widget */
+        .qa-fab {
+            position: fixed;
+            bottom: 2rem;
+            right: 12rem;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: var(--accent-color);
+            color: var(--bg-color);
+            border: none;
+            box-shadow: var(--shadow-lg);
+            z-index: 501;
+        }
+        .qa-widget {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 400px;
+            max-width: calc(100vw - 4rem);
+            height: 500px;
+            max-height: calc(100vh - 4rem);
+            background-color: var(--bg-color);
+            border-radius: 12px;
+            box-shadow: var(--shadow-lg);
+            z-index: 600;
+            display: flex;
+            flex-direction: column;
+        }
+        .qa-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 1.5rem;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+        }
+        .qa-history {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .qa-placeholder {
+            text-align: center;
+            opacity: 0.7;
+            padding: 2rem;
+            margin: auto;
+        }
+        .qa-question, .qa-answer {
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            max-width: 85%;
+            line-height: 1.5;
+        }
+        .qa-question {
+            background-color: rgba(0,0,0,0.05);
+            align-self: flex-start;
+        }
+        .qa-answer {
+            background-color: var(--accent-color);
+            color: var(--bg-color);
+            align-self: flex-end;
+        }
+        .qa-form {
+            display: flex;
+            padding: 1rem;
+            border-top: 1px solid rgba(0,0,0,0.1);
+            gap: 0.5rem;
+        }
+        .qa-form input {
+            flex: 1;
+        }
+        
+        .loading-dots {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .loading-dots span {
+            animation: blink 1.4s infinite both;
+            font-size: 1.5rem;
+            line-height: 1;
+        }
+        .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes blink {
+            0%, 80%, 100% { opacity: 0; }
+            40% { opacity: 1; }
+        }
     </style>
 <script type="importmap">
 {

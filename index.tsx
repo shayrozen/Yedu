@@ -15,6 +15,12 @@ interface LibraryEntry {
     refinementHistory: string[];
 }
 
+interface QAItem {
+    question: string;
+    answer: string;
+    isLoading?: boolean;
+}
+
 type VisualTheme = 'Modern Scholar' | 'Manuscript';
 type View = 'welcome' | 'infographic';
 type AnalysisLens = 'General Summary' | 'Halachic Structure & Process' | 'Philosophical Deep Dive' | 'Character & Narrative Analysis' | 'Compare & Contrast Viewpoints';
@@ -72,6 +78,12 @@ const App: React.FC = () => {
     const [isRefineModalOpen, setIsRefineModalOpen] = useState(false);
     const [refineDirectives, setRefineDirectives] = useState('');
     const infographicRef = useRef<HTMLDivElement>(null);
+    
+    // Feature State
+    const [isTranscriptVisible, setIsTranscriptVisible] = useState(false);
+    const [qaHistory, setQaHistory] = useState<QAItem[]>([]);
+    const [isQaWidgetOpen, setIsQaWidgetOpen] = useState(false);
+
 
     // --- EFFECTS ---
     useEffect(() => {
@@ -125,7 +137,7 @@ const App: React.FC = () => {
 
             const response = await model.generateContent({
                 model: 'gemini-2.5-pro',
-                contents: [{ role: 'user', parts: [textPart, audioPart] }],
+                contents: [{ parts: [textPart, audioPart] }],
             });
 
             const transcription = response.text;
@@ -136,7 +148,7 @@ const App: React.FC = () => {
 
         } catch (error) {
             console.error("Error transcribing audio:", error);
-            alert(`An error occurred during transcription or analysis: ${error.message || 'Please try again.'}`);
+            alert(`An error occurred during transcription or analysis: ${(error as Error).message || 'Please try again.'}`);
             setIsLoading(false); // Ensure loading is turned off on error
         }
     };
@@ -195,14 +207,11 @@ const App: React.FC = () => {
             
             const htmlOutput = response.text;
             
-            // Defensive check to ensure htmlOutput is a string.
-            // This can happen if the model's response is blocked due to safety settings or other reasons.
             if (!htmlOutput || typeof htmlOutput !== 'string') {
                 console.error("Analysis generation returned an empty or invalid response:", response);
                 throw new Error("The AI model returned an empty response. This could be due to content safety filters or an issue with the prompt. Please try modifying your input or directives.");
             }
             
-            // Extract title from <h1> tag
             const titleMatch = htmlOutput.match(/<h1[^>]*>(.*?)<\/h1>/i);
             const title = titleMatch ? titleMatch[1] : "Untitled Analysis";
 
@@ -242,6 +251,45 @@ const App: React.FC = () => {
         }
     };
     
+    const handleAskQuestion = async (question: string) => {
+        if (!question || !currentAnalysis) return;
+
+        const newQaEntry = { question, answer: '', isLoading: true };
+        setQaHistory(prev => [...prev, newQaEntry]);
+
+        try {
+            const prompt = `
+                You are a helpful assistant. Based ONLY on the provided text below, answer the user's question concisely.
+                If the answer cannot be found within the text, state that clearly. Do not use outside knowledge.
+
+                PROVIDED TEXT:
+                ---
+                ${currentAnalysis.sourceText}
+                ---
+
+                USER'S QUESTION: ${question}
+            `;
+
+            const response = await model.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: [{ parts: [{ text: prompt }] }],
+            });
+
+            const answer = response.text;
+            
+            setQaHistory(prev => prev.map(item => 
+                item.question === question && item.isLoading ? { ...item, answer, isLoading: false } : item
+            ));
+
+        } catch (error) {
+            console.error("Error asking question:", error);
+            const errorMessage = (error as Error).message || "An error occurred. Please try again.";
+            setQaHistory(prev => prev.map(item => 
+                item.question === question && item.isLoading ? { ...item, answer: `Error: ${errorMessage}`, isLoading: false } : item
+            ));
+        }
+    };
+    
     const handleSaveChanges = () => {
         if (!currentAnalysis || !infographicRef.current) return;
         
@@ -278,6 +326,9 @@ const App: React.FC = () => {
         setVisualTheme(entry.visualTheme);
         setView('infographic');
         setIsSidebarOpen(false);
+        setIsTranscriptVisible(false);
+        setQaHistory([]);
+        setIsQaWidgetOpen(false);
     }
     
     const startNewAnalysis = () => {
@@ -285,6 +336,9 @@ const App: React.FC = () => {
         setSourceText('');
         setCustomDirectives('');
         setView('welcome');
+        setIsTranscriptVisible(false);
+        setQaHistory([]);
+        setIsQaWidgetOpen(false);
     }
 
     return (
@@ -317,6 +371,12 @@ const App: React.FC = () => {
                         onDownload={handleDownloadHtml}
                         onOpenLibrary={() => setIsSidebarOpen(true)}
                         onNewAnalysis={startNewAnalysis}
+                        isTranscriptVisible={isTranscriptVisible}
+                        onToggleTranscript={() => setIsTranscriptVisible(!isTranscriptVisible)}
+                        qaHistory={qaHistory}
+                        onAskQuestion={handleAskQuestion}
+                        isQaWidgetOpen={isQaWidgetOpen}
+                        setIsQaWidgetOpen={setIsQaWidgetOpen}
                     />
                 )}
             </main>
@@ -342,7 +402,6 @@ const WelcomeScreen = ({ sourceText, setSourceText, analysisLens, setAnalysisLen
         const file = event.target.files?.[0];
         if (file) {
             onFileSelect(file);
-            // Reset file input to allow re-uploading the same file
             if(event.target) event.target.value = '';
         }
     };
@@ -421,17 +480,49 @@ const WelcomeScreen = ({ sourceText, setSourceText, analysisLens, setAnalysisLen
     );
 };
 
-const InfographicScreen = React.forwardRef<HTMLDivElement, { analysis: LibraryEntry, onSaveChanges: () => void, onRefine: () => void, onDownload: () => void, onOpenLibrary: () => void, onNewAnalysis: () => void }>(({ analysis, onSaveChanges, onRefine, onDownload, onOpenLibrary, onNewAnalysis }, ref) => (
+const InfographicScreen = React.forwardRef<HTMLDivElement, { 
+    analysis: LibraryEntry, 
+    onSaveChanges: () => void, 
+    onRefine: () => void, 
+    onDownload: () => void, 
+    onOpenLibrary: () => void, 
+    onNewAnalysis: () => void,
+    isTranscriptVisible: boolean,
+    onToggleTranscript: () => void,
+    qaHistory: QAItem[],
+    onAskQuestion: (question: string) => void,
+    isQaWidgetOpen: boolean,
+    setIsQaWidgetOpen: (isOpen: boolean) => void
+}>(({ analysis, onSaveChanges, onRefine, onDownload, onOpenLibrary, onNewAnalysis, isTranscriptVisible, onToggleTranscript, qaHistory, onAskQuestion, isQaWidgetOpen, setIsQaWidgetOpen }, ref) => (
     <div>
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, background: 'var(--bg-color)', zIndex: 100, boxShadow: 'var(--shadow-md)', padding: '0.75rem 2rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
              <button onClick={onOpenLibrary} className="button-icon" title="Open Library"><LibraryIcon /></button>
              <button onClick={onNewAnalysis} className="button-icon" title="New Analysis"><PlusIcon/></button>
             <h2 style={{ margin: 0, fontFamily: 'var(--font-serif)', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={analysis.title}>{analysis.title}</h2>
+             <button onClick={onToggleTranscript} className="button-secondary">View Transcript</button>
              <button onClick={onSaveChanges} className="button-secondary">Save Edits</button>
              <button onClick={onDownload} className="button-secondary">Download HTML</button>
         </div>
-        <div ref={ref} dangerouslySetInnerHTML={{ __html: analysis.infographicHtml }} style={{ marginTop: '80px' }} />
-        <button onClick={onRefine} className="button-primary" style={{ position: 'fixed', bottom: '2rem', right: '2rem', borderRadius: '50px', boxShadow: 'var(--shadow-lg)', padding: '1rem 1.5rem' }}>
+        <div style={{ display: 'flex' }}>
+            <div 
+                ref={ref} 
+                dangerouslySetInnerHTML={{ __html: analysis.infographicHtml }} 
+                style={{ 
+                    marginTop: '80px', 
+                    flex: 1,
+                    marginRight: isTranscriptVisible ? '420px' : '0',
+                    transition: 'margin-right 0.3s ease-out',
+                }} 
+            />
+            <TranscriptPanel text={analysis.sourceText} isVisible={isTranscriptVisible} onClose={onToggleTranscript} />
+        </div>
+        <QAWidget 
+            history={qaHistory} 
+            onAskQuestion={onAskQuestion}
+            isOpen={isQaWidgetOpen}
+            onToggle={() => setIsQaWidgetOpen(!isQaWidgetOpen)}
+        />
+        <button onClick={onRefine} className="button-primary" style={{ position: 'fixed', bottom: '2rem', right: '2rem', borderRadius: '50px', boxShadow: 'var(--shadow-lg)', padding: '1rem 1.5rem', zIndex: 501 }}>
             Refine & Re-Analyze
         </button>
     </div>
@@ -499,6 +590,76 @@ const RefineModal = ({ onClose, onSubmit, value, onChange }) => (
     </div>
 );
 
+const TranscriptPanel = ({ text, isVisible, onClose }) => (
+    <div className="transcript-panel" style={{ transform: isVisible ? 'translateX(0)' : 'translateX(100%)' }}>
+        <div className="transcript-header">
+            <h3 style={{fontFamily: 'var(--font-serif)', margin: 0}}>Source Transcript</h3>
+            <button onClick={onClose} className="button-icon"><CloseIcon /></button>
+        </div>
+        <div className="transcript-content">
+            <pre>{text}</pre>
+        </div>
+    </div>
+);
+
+const QAWidget = ({ history, onAskQuestion, isOpen, onToggle }) => {
+    const [question, setQuestion] = useState('');
+    const chatEndRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (isOpen) {
+            chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [history, isOpen]);
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (question.trim()) {
+            onAskQuestion(question.trim());
+            setQuestion('');
+        }
+    };
+
+    if (!isOpen) {
+        return (
+            <button onClick={onToggle} className="qa-fab" title="Ask a question about the text">
+                <QuestionIcon />
+            </button>
+        );
+    }
+    
+    return (
+        <div className="qa-widget">
+            <div className="qa-header">
+                <h3 style={{fontFamily: 'var(--font-serif)', margin: 0}}>Ask About This Lesson</h3>
+                <button onClick={onToggle} className="button-icon"><CloseIcon /></button>
+            </div>
+            <div className="qa-history">
+                {history.length === 0 && <p className="qa-placeholder">Ask a question about the transcript to get started.</p>}
+                {history.map((item, index) => (
+                    <div key={index}>
+                        <div className="qa-question">{item.question}</div>
+                        <div className="qa-answer">
+                            {item.isLoading ? <div className="loading-dots"><span>.</span><span>.</span><span>.</span></div> : item.answer.split('\n').map((line, i) => <p key={i} style={{margin: '0 0 0.5em 0'}}>{line}</p>)}
+                        </div>
+                    </div>
+                ))}
+                <div ref={chatEndRef} />
+            </div>
+            <form onSubmit={handleSubmit} className="qa-form">
+                <input
+                    type="text"
+                    value={question}
+                    onChange={e => setQuestion(e.target.value)}
+                    placeholder="Type your question..."
+                    aria-label="Ask a question"
+                />
+                <button type="submit" className="button-icon" title="Ask"><SendIcon /></button>
+            </form>
+        </div>
+    );
+};
+
 const LoadingOverlay = ({ quote }) => (
     <div className="loading-overlay">
         <div className="loading-spinner"></div>
@@ -510,6 +671,8 @@ const LoadingOverlay = ({ quote }) => (
 const LibraryIcon = () => (<svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20v2H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v15H6.5A2.5 2.5 0 0 1 4 4.5v15zM6 4h12V3H6.5A1.5 1.5 0 0 0 5 4.5v15A1.5 1.5 0 0 0 6.5 21H20v-1H6.5A1.5 1.5 0 0 0 5 19.5v-15A1.5 1.5 0 0 0 6.5 3H20v1H6z"></path></svg>);
 const PlusIcon = () => (<svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>);
 const CloseIcon = () => (<svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>);
+const QuestionIcon = () => (<svg viewBox="0 0 24 24"><path d="M9.09,9a3,3,0,0,1,5.83,1c0,2-3,3-3,3M12,17h.01"></path></svg>);
+const SendIcon = () => (<svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>);
 
 // --- RENDER APP ---
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
