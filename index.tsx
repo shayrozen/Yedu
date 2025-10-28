@@ -83,7 +83,14 @@ const App: React.FC = () => {
     const [isTranscriptVisible, setIsTranscriptVisible] = useState(false);
     const [qaHistory, setQaHistory] = useState<QAItem[]>([]);
     const [isQaWidgetOpen, setIsQaWidgetOpen] = useState(false);
-
+    const [isDarkMode, setIsDarkMode] = useState(() => {
+        if (typeof window !== 'undefined') {
+            const savedMode = localStorage.getItem('yedu-dark-mode');
+            if (savedMode) return savedMode === 'true';
+            return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
+        }
+        return false;
+    });
 
     // --- EFFECTS ---
     useEffect(() => {
@@ -98,8 +105,19 @@ const App: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        document.body.className = visualTheme === 'Manuscript' ? 'theme-manuscript' : '';
-    }, [visualTheme]);
+        document.body.className = ''; // Reset classes
+        if (isDarkMode) {
+            document.body.classList.add('dark');
+        }
+        if (visualTheme === 'Manuscript') {
+            document.body.classList.add('theme-manuscript');
+        }
+        try {
+            localStorage.setItem('yedu-dark-mode', String(isDarkMode));
+        } catch (error) {
+            console.error("Failed to save dark mode preference", error);
+        }
+    }, [visualTheme, isDarkMode]);
 
     const saveLibrary = (newLibrary: LibraryEntry[]) => {
         setLibrary(newLibrary);
@@ -143,13 +161,12 @@ const App: React.FC = () => {
             const transcription = response.text;
             setSourceText(transcription);
             
-            // Immediately generate analysis after successful transcription
             await handleGenerate(false, transcription);
 
         } catch (error) {
             console.error("Error transcribing audio:", error);
             alert(`An error occurred during transcription or analysis: ${(error as Error).message || 'Please try again.'}`);
-            setIsLoading(false); // Ensure loading is turned off on error
+            setIsLoading(false);
         }
     };
     
@@ -360,6 +377,8 @@ const App: React.FC = () => {
                         onGenerate={() => handleGenerate(false)}
                         onOpenLibrary={() => setIsSidebarOpen(true)}
                         onFileSelect={handleFileSelect}
+                        isDarkMode={isDarkMode}
+                        onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
                     />
                 )}
                 {view === 'infographic' && currentAnalysis && (
@@ -377,6 +396,8 @@ const App: React.FC = () => {
                         onAskQuestion={handleAskQuestion}
                         isQaWidgetOpen={isQaWidgetOpen}
                         setIsQaWidgetOpen={setIsQaWidgetOpen}
+                        isDarkMode={isDarkMode}
+                        onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
                     />
                 )}
             </main>
@@ -395,7 +416,7 @@ const App: React.FC = () => {
 
 // --- CHILD COMPONENTS ---
 
-const WelcomeScreen = ({ sourceText, setSourceText, analysisLens, setAnalysisLens, customDirectives, setCustomDirectives, visualTheme, setVisualTheme, onGenerate, onOpenLibrary, onFileSelect }) => {
+const WelcomeScreen = ({ sourceText, setSourceText, analysisLens, setAnalysisLens, customDirectives, setCustomDirectives, visualTheme, setVisualTheme, onGenerate, onOpenLibrary, onFileSelect, isDarkMode, onToggleDarkMode }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -412,7 +433,10 @@ const WelcomeScreen = ({ sourceText, setSourceText, analysisLens, setAnalysisLen
     
     return (
         <div style={{ maxWidth: '700px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-            <header style={{ textAlign: 'center' }}>
+            <header style={{ textAlign: 'center', position: 'relative' }}>
+                <div style={{ position: 'absolute', top: 0, right: 0 }}>
+                    <ThemeToggle isDarkMode={isDarkMode} onToggle={onToggleDarkMode} />
+                </div>
                 <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: '3rem', margin: '0 0 0.5rem 0' }}>Yedu</h1>
                 <p style={{ fontSize: '1.2rem', margin: 0, opacity: 0.8 }}>The Digital Chavruta</p>
                  <button onClick={onOpenLibrary} className="button-secondary" style={{ marginTop: '1rem' }}>Open Study Library</button>
@@ -446,7 +470,7 @@ const WelcomeScreen = ({ sourceText, setSourceText, analysisLens, setAnalysisLen
                 </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+            <div className="welcome-screen-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                 <div>
                     <label htmlFor="analysisLens">Analysis Lens</label>
                     <select id="analysisLens" value={analysisLens} onChange={(e) => setAnalysisLens(e.target.value as AnalysisLens)}>
@@ -492,16 +516,19 @@ const InfographicScreen = React.forwardRef<HTMLDivElement, {
     qaHistory: QAItem[],
     onAskQuestion: (question: string) => void,
     isQaWidgetOpen: boolean,
-    setIsQaWidgetOpen: (isOpen: boolean) => void
-}>(({ analysis, onSaveChanges, onRefine, onDownload, onOpenLibrary, onNewAnalysis, isTranscriptVisible, onToggleTranscript, qaHistory, onAskQuestion, isQaWidgetOpen, setIsQaWidgetOpen }, ref) => (
+    setIsQaWidgetOpen: (isOpen: boolean) => void,
+    isDarkMode: boolean,
+    onToggleDarkMode: () => void,
+}>(({ analysis, onSaveChanges, onRefine, onDownload, onOpenLibrary, onNewAnalysis, isTranscriptVisible, onToggleTranscript, qaHistory, onAskQuestion, isQaWidgetOpen, setIsQaWidgetOpen, isDarkMode, onToggleDarkMode }, ref) => (
     <div>
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, background: 'var(--bg-color)', zIndex: 100, boxShadow: 'var(--shadow-md)', padding: '0.75rem 2rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div className="infographic-header" style={{ position: 'fixed', top: 0, left: 0, right: 0, background: 'var(--bg-color)', zIndex: 100, boxShadow: 'var(--shadow-md)', padding: '0.75rem 2rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
              <button onClick={onOpenLibrary} className="button-icon" title="Open Library"><LibraryIcon /></button>
              <button onClick={onNewAnalysis} className="button-icon" title="New Analysis"><PlusIcon/></button>
             <h2 style={{ margin: 0, fontFamily: 'var(--font-serif)', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={analysis.title}>{analysis.title}</h2>
-             <button onClick={onToggleTranscript} className="button-secondary">View Transcript</button>
-             <button onClick={onSaveChanges} className="button-secondary">Save Edits</button>
-             <button onClick={onDownload} className="button-secondary">Download HTML</button>
+            <ThemeToggle isDarkMode={isDarkMode} onToggle={onToggleDarkMode} />
+            <button onClick={onToggleTranscript} className="button-secondary">View Transcript</button>
+            <button onClick={onSaveChanges} className="button-secondary">Save Edits</button>
+            <button onClick={onDownload} className="button-secondary">Download HTML</button>
         </div>
         <div style={{ display: 'flex' }}>
             <div 
@@ -522,8 +549,8 @@ const InfographicScreen = React.forwardRef<HTMLDivElement, {
             isOpen={isQaWidgetOpen}
             onToggle={() => setIsQaWidgetOpen(!isQaWidgetOpen)}
         />
-        <button onClick={onRefine} className="button-primary" style={{ position: 'fixed', bottom: '2rem', right: '2rem', borderRadius: '50px', boxShadow: 'var(--shadow-lg)', padding: '1rem 1.5rem', zIndex: 501 }}>
-            Refine & Re-Analyze
+        <button onClick={onRefine} className="button-primary refine-button" style={{ position: 'fixed', bottom: '2rem', right: '2rem', borderRadius: '50px', boxShadow: 'var(--shadow-lg)', padding: '1rem 1.5rem', zIndex: 501 }}>
+            Refine Analysis
         </button>
     </div>
 ));
@@ -539,14 +566,14 @@ const Sidebar = ({ isOpen, onClose, library, onLoad }) => {
     }, [searchTerm, library]);
 
     return (
-        <div style={{
+        <div className="sidebar" style={{
             position: 'fixed', top: 0, left: 0, bottom: 0, width: '350px',
             transform: isOpen ? 'translateX(0)' : 'translateX(-100%)',
             transition: 'transform 0.3s ease-out',
             backgroundColor: 'var(--bg-color)', boxShadow: 'var(--shadow-lg)',
             zIndex: 200, display: 'flex', flexDirection: 'column'
         }}>
-            <div style={{ padding: '1rem', borderBottom: '1px solid rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <h2 style={{ margin: 0, fontFamily: 'var(--font-serif)'}}>Study Library</h2>
                 <button onClick={onClose} className="button-icon"><CloseIcon /></button>
             </div>
@@ -555,7 +582,7 @@ const Sidebar = ({ isOpen, onClose, library, onLoad }) => {
             </div>
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, overflowY: 'auto', flex: 1 }}>
                 {filteredLibrary.map(item => (
-                    <li key={item.id} style={{ borderBottom: '1px solid rgba(0,0,0,0.1)' }}>
+                    <li key={item.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                         <button onClick={() => onLoad(item)} style={{
                             width: '100%', textAlign: 'left', background: 'none', border: 'none',
                             padding: '1rem', cursor: 'pointer', fontFamily: 'inherit', color: 'inherit'
@@ -622,22 +649,22 @@ const QAWidget = ({ history, onAskQuestion, isOpen, onToggle }) => {
 
     if (!isOpen) {
         return (
-            <button onClick={onToggle} className="qa-fab" title="Ask a question about the text">
-                <QuestionIcon />
+            <button onClick={onToggle} className="button-secondary qa-fab" title="Ask a question about the text">
+                <QuestionIcon /> <span>Ask Question</span>
             </button>
         );
     }
     
     return (
-        <div className="qa-widget">
+        <div className="qa-widget" style={{ transform: isOpen ? 'translateY(0)' : `translateY(calc(100% + 2rem))`, opacity: isOpen ? 1: 0 }}>
             <div className="qa-header">
-                <h3 style={{fontFamily: 'var(--font-serif)', margin: 0}}>Ask About This Lesson</h3>
+                <h3 style={{fontFamily: 'var(--font-serif)', margin: 0}}>Interactive Q&A</h3>
                 <button onClick={onToggle} className="button-icon"><CloseIcon /></button>
             </div>
             <div className="qa-history">
                 {history.length === 0 && <p className="qa-placeholder">Ask a question about the transcript to get started.</p>}
                 {history.map((item, index) => (
-                    <div key={index}>
+                    <div key={index} style={{display: 'flex', flexDirection: 'column'}}>
                         <div className="qa-question">{item.question}</div>
                         <div className="qa-answer">
                             {item.isLoading ? <div className="loading-dots"><span>.</span><span>.</span><span>.</span></div> : item.answer.split('\n').map((line, i) => <p key={i} style={{margin: '0 0 0.5em 0'}}>{line}</p>)}
@@ -667,12 +694,21 @@ const LoadingOverlay = ({ quote }) => (
     </div>
 );
 
+const ThemeToggle = ({ isDarkMode, onToggle }) => (
+    <button onClick={onToggle} className="button-icon" title={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}>
+        {isDarkMode ? <SunIcon /> : <MoonIcon />}
+    </button>
+);
+
 // --- ICONS ---
 const LibraryIcon = () => (<svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20v2H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v15H6.5A2.5 2.5 0 0 1 4 4.5v15zM6 4h12V3H6.5A1.5 1.5 0 0 0 5 4.5v15A1.5 1.5 0 0 0 6.5 21H20v-1H6.5A1.5 1.5 0 0 0 5 19.5v-15A1.5 1.5 0 0 0 6.5 3H20v1H6z"></path></svg>);
 const PlusIcon = () => (<svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>);
 const CloseIcon = () => (<svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>);
 const QuestionIcon = () => (<svg viewBox="0 0 24 24"><path d="M9.09,9a3,3,0,0,1,5.83,1c0,2-3,3-3,3M12,17h.01"></path></svg>);
 const SendIcon = () => (<svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>);
+const SunIcon = () => (<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>);
+const MoonIcon = () => (<svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>);
+
 
 // --- RENDER APP ---
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
